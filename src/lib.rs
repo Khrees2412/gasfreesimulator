@@ -19,20 +19,23 @@ sol! {
 
 #[public]
 impl GasFreeSimulator {
-    pub fn simulate_tx(&self, caller: Address, tx_type: u8) {
+    pub fn simulate_tx(&mut self, caller: Address, tx_type: u8) {
         let gas_before = self.vm().evm_gas_left();
 
         match tx_type {
             1 => self.dummy_transfer(),
             2 => self.dummy_swap(),
             3 => self.dummy_contract_interaction(),
-            _ => log(
-                self.vm(),
-                Log {
-                    sender: caller,
-                    message: "Invalid transaction type".to_string(),
-                },
-            ),
+            _ => {
+                log(
+                    self.vm(),
+                    Log {
+                        sender: caller,
+                        message: "Invalid transaction type".to_string(),
+                    },
+                );
+                return; // Early return for invalid tx_type
+            }
         }
 
         let gas_after = self.vm().evm_gas_left();
@@ -47,15 +50,18 @@ impl GasFreeSimulator {
         );
     }
 
-    fn dummy_transfer(&self) {
+    fn dummy_transfer(&mut self) {
+        self.number.set(self.number.get() + U256::from(1));
         let _ = self.vm().evm_gas_left() / 2;
     }
 
-    fn dummy_swap(&self) {
+    fn dummy_swap(&mut self) {
+        self.number.set(self.number.get() + U256::from(2));
         let _ = self.vm().evm_gas_left() / 3;
     }
 
-    fn dummy_contract_interaction(&self) {
+    fn dummy_contract_interaction(&mut self) {
+        self.number.set(self.number.get() + U256::from(3));
         let _ = self.vm().evm_gas_left() / 4;
     }
 
@@ -64,7 +70,16 @@ impl GasFreeSimulator {
             1 => 21000, // Approx for transfers
             2 => 45000, // Approx for swaps
             3 => 60000, // Approx for contract calls
-            _ => 0,
+            _ => {
+                log(
+                    self.vm(),
+                    Log {
+                        sender: Address::default(),
+                        message: "Invalid transaction type for estimation".to_string(),
+                    },
+                );
+                return;
+            }
         };
 
         let total_gas = U256::from(base_gas_cost) * U256::from(num_txs);
@@ -82,5 +97,9 @@ impl GasFreeSimulator {
                 ),
             },
         );
+    }
+
+    pub fn get_number(&self) -> U256 {
+        return self.number.get();
     }
 }
