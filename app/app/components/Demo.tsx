@@ -56,13 +56,13 @@
 //       "type": "function"
 //     }
 //   ];
-  
+
 //   const CA = "0xc7c553f9031b2cf0fd15603a0e39685c86a1a457";
 
 // //    const { isDarkMode } = useTheme();
 //     const [transactionType, setTransactionType] = useState("transfer");
 //     const [contract, setContract] = useState(null);
-  
+
 //     useEffect(() => {
 //       if (typeof window.ethereum !== "undefined") {
 //         const web3 = new Web3(window.ethereum);
@@ -70,7 +70,7 @@
 //         setContract(contractInstance);
 //       }
 //     }, []);
-  
+
 //     const executeFunction = async (methodName, params = []) => {
 //       if (!contract) {
 //         toast.error("Contract not loaded yet");
@@ -85,7 +85,7 @@
 //         console.error(`Error executing ${methodName}:`, error);
 //       }
 //     };
-  
+
 //     const estimatePaymasterCost = async () => {
 //       const txTypeMapping = { transfer: 0, swap: 1, contractInteraction: 2 };
 //       const txType = txTypeMapping[transactionType];
@@ -126,9 +126,8 @@
 //           </select>
 //         </div>
 
-
 //               <label htmlFor="amount of transactions" className="block mb-2">
-//                 Amount 
+//                 Amount
 //               </label>
 //               <input
 //                 type="number"
@@ -139,7 +138,6 @@
 //                 required
 //               />
 //             </div>
-            
 
 //             <button
 //               type="submit"
@@ -165,131 +163,156 @@
 //   )
 // }
 
-
-
 "use client";
 
 import { useState, useEffect } from "react";
 import Web3 from "web3";
 import { toast } from "sonner";
-import { useTheme } from "../contexts/ThemeContext"
-
+import { useTheme } from "../contexts/ThemeContext";
 
 const contractABI = [
-  {
-    "inputs": [],
-    "name": "dummyContractInteraction",
-    "outputs": [],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "dummySwap",
-    "outputs": [],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "dummyTransfer",
-    "outputs": [],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "internalType": "uint8", "name": "tx_type", "type": "uint8" },
-      { "internalType": "uint32", "name": "num_txs", "type": "uint32" }
-    ],
-    "name": "estimatePaymasterCost",
-    "outputs": [{ "internalType": "uint256", "name": "cost", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
-  }
+    {
+        inputs: [],
+        name: "dummyContractInteraction",
+        outputs: [],
+        stateMutability: "view",
+        type: "function",
+    },
+    {
+        inputs: [],
+        name: "dummySwap",
+        outputs: [],
+        stateMutability: "view",
+        type: "function",
+    },
+    {
+        inputs: [],
+        name: "dummyTransfer",
+        outputs: [],
+        stateMutability: "view",
+        type: "function",
+    },
+    {
+        inputs: [
+            { internalType: "uint8", name: "tx_type", type: "uint8" },
+            { internalType: "uint32", name: "num_txs", type: "uint32" },
+        ],
+        name: "estimatePaymasterCost",
+        outputs: [{ internalType: "uint256", name: "cost", type: "uint256" }],
+        stateMutability: "view",
+        type: "function",
+    },
 ];
 
 const CONTRACT_ADDRESS = "";
 
 export default function WalletForm() {
-  const [transactionType, setTransactionType] = useState("transfer");
-  const [contract, setContract] = useState(null);
-  const { isDarkMode } = useTheme()
-     const [amount, setAmount] = useState("")
-     const [recipient, setRecipient] = useState("")
-     const [isLoading, setIsLoading] = useState(false)
-     const [result, setResult] = useState<string | null>(null)
-  
+    const [transactionType, setTransactionType] = useState<
+        "transfer" | "swap" | "contractInteraction"
+    >("transfer");
+    const [contract, setContract] = useState<any | null>(null);
+    const { isDarkMode } = useTheme();
+    const [amount, setAmount] = useState("");
+    const [recipient, setRecipient] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [result, setResult] = useState<string | null>(null);
 
+    useEffect(() => {
+        if (window.ethereum) {
+            const web3 = new Web3(window.ethereum);
+            setContract(new web3.eth.Contract(contractABI, CONTRACT_ADDRESS));
+        }
+    }, []);
 
-  useEffect(() => {
-    if (window.ethereum) {
-      const web3 = new Web3(window.ethereum);
-      setContract(new web3.eth.Contract(contractABI, CONTRACT_ADDRESS));
-    }
-  }, []);
+    const executeFunction = async (methodName: any) => {
+        if (!contract) return toast.error("Contract not loaded yet");
+        try {
+            const result = await contract.methods[methodName]().call();
+            toast.success(`${methodName} executed successfully`);
+            console.log(`${methodName} result:`, result);
+        } catch (error) {
+            toast.error(`Error executing ${methodName}`);
+            console.error(`Error executing ${methodName}:`, error);
+        }
+    };
 
-  const executeFunction = async (methodName: any) => {
-    if (!contract) return toast.error("Contract not loaded yet");
-    try {
-      const result = await contract.methods[methodName]().call();
-      toast.success(`${methodName} executed successfully`);
-      console.log(`${methodName} result:`, result);
-    } catch (error) {
-      toast.error(`Error executing ${methodName}`);
-      console.error(`Error executing ${methodName}:`, error);
-    }
-  };
+    const estimatePaymasterCost = async () => {
+        const txTypeMapping = { transfer: 0, swap: 1, contractInteraction: 2 };
+        const txType = txTypeMapping[transactionType];
+        if (txType === undefined)
+            return toast.error("Invalid transaction type");
+        try {
+            const cost = await contract.methods
+                .estimatePaymasterCost(txType, 10)
+                .call();
+            toast.success(`Estimated Paymaster Cost: ${cost}`);
+            console.log("Estimated Paymaster Cost:", cost);
+        } catch (error) {
+            toast.error("Error estimating Paymaster Cost");
+            console.error("Error estimating Paymaster Cost:", error);
+        }
+    };
 
-  const estimatePaymasterCost = async () => {
-    const txTypeMapping = { transfer: 0, swap: 1, contractInteraction: 2 };
-    const txType = txTypeMapping[transactionType];
-    if (txType === undefined) return toast.error("Invalid transaction type");
-    try {
-      const cost = await contract.methods.estimatePaymasterCost(txType, 10).call();
-      toast.success(`Estimated Paymaster Cost: ${cost}`);
-      console.log("Estimated Paymaster Cost:", cost);
-    } catch (error) {
-      toast.error("Error estimating Paymaster Cost");
-      console.error("Error estimating Paymaster Cost:", error);
-    }
-  };
+    return (
+        <form
+            className={`p-6 ${
+                isDarkMode ? "bg-gray-700" : "bg-white"
+            } w-1/2 mx-auto px-10 my-10 shadow-md rounded transition-colors duration-300`}
+        >
+            <h2 className="text-2xl font-bold mb-4">
+                Estimate Paymaster Fee or Cost
+            </h2>
+            <div className="mb-4">
+                <label htmlFor="transactionType" className="block mb-2">
+                    Transaction Type
+                </label>
+                <select
+                    id="transactionType"
+                    value={transactionType}
+                    onChange={(e) =>
+                        setTransactionType(
+                            e.target.value as
+                                | "transfer"
+                                | "swap"
+                                | "contractInteraction"
+                        )
+                    }
+                    className={`w-full px-3 py-2 ${
+                        isDarkMode ? "bg-gray-600" : "bg-gray-100"
+                    } border rounded mb-4 transition-colors duration-300`}
+                >
+                    <option value="transfer">Transfer</option>
+                    <option value="swap">Swap</option>
+                    <option value="contractInteraction">
+                        Contract Interaction
+                    </option>
+                </select>
 
-  return (
-    <form className={`p-6 ${isDarkMode ? "bg-gray-700" : "bg-white"} w-1/2 mx-auto px-10 my-10 shadow-md rounded transition-colors duration-300`}>
-        <h2 className="text-2xl font-bold mb-4">Estimate Paymaster Fee or Cost</h2>
-        <div className="mb-4">
-            
-      <label htmlFor="transactionType" className="block mb-2">Transaction Type</label>
-      <select
-        id="transactionType"
-        value={transactionType}
-        onChange={(e) => setTransactionType(e.target.value)}
-        className={`w-full px-3 py-2 ${isDarkMode ? "bg-gray-600" : "bg-gray-100"} border rounded mb-4 transition-colors duration-300`}
-      >
-        <option value="transfer">Transfer</option>
-        <option value="swap">Swap</option>
-        <option value="contractInteraction">Contract Interaction</option>
-      </select>
-        
-
-<label htmlFor="amount" className="block mb-2">Amount</label>
-            <input
-                type="number"
-                id="amount"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className={`w-full px-3 py-2 ${isDarkMode ? "bg-gray-600" : "bg-gray-100"} border rounded transition-colors duration-300`}
-                required
-            />
+                <label htmlFor="amount" className="block mb-2">
+                    Amount
+                </label>
+                <input
+                    type="number"
+                    id="amount"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className={`w-full px-3 py-2 ${
+                        isDarkMode ? "bg-gray-600" : "bg-gray-100"
+                    } border rounded transition-colors duration-300`}
+                    required
+                />
             </div>
             <button
-              type="button"
-              onClick={estimatePaymasterCost}
-              className={`w-full ${isDarkMode ? "bg-blue-500 hover:bg-blue-600" : "bg-blue-600 hover:bg-blue-700"} text-white font-bold py-2 px-4 rounded transition-colors duration-300`}
+                type="button"
+                onClick={estimatePaymasterCost}
+                className={`w-full ${
+                    isDarkMode
+                        ? "bg-blue-500 hover:bg-blue-600"
+                        : "bg-blue-600 hover:bg-blue-700"
+                } text-white font-bold py-2 px-4 rounded transition-colors duration-300`}
             >
-              Estimate Gas Fee
+                Estimate Gas Fee
             </button>
-    </form>
-  );
+        </form>
+    );
 }
